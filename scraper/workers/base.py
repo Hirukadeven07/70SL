@@ -2,6 +2,36 @@ from abc import ABC, abstractmethod
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
+# ── Title relevance filter (shared by all scrapers) ───────────────────────────
+
+_INCLUDE = frozenset([
+    "4x4", "4wd", "awd", "double cab", "double-cab", "pickup",
+    "hilux", "ranger", "d-max", "triton", "navara",
+    "fortuner", "prado", "land cruiser", "landcruiser", "pajero", "montero", "surf",
+    "jeep", "suv",
+])
+
+# Any of these in the title → not a vehicle-for-sale listing
+_EXCLUDE = frozenset([
+    # Parts & accessories
+    "lamp", " light", "grille", "grill", "body kit", "conversion kit",
+    "side step", "wheel arch", "wheel cover", "clutch kit", "air filter",
+    "shock absorber", "spare part", "used part", "for parts",
+    # Rentals & hire
+    "rent a car", "for rent", "for hire", "wedding car", "car hire",
+    # Finance/leasing-only ads
+    "easy leasing", "easy loan",
+])
+
+
+def is_relevant_title(title: str) -> bool:
+    """Return True only if the title suggests a 4x4/double-cab vehicle for sale."""
+    lower = title.lower()
+    if any(ex in lower for ex in _EXCLUDE):
+        return False
+    return any(kw in lower for kw in _INCLUDE)
+
+
 _UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "

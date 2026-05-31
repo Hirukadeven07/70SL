@@ -1,18 +1,12 @@
 import asyncio
 import re
 
-from scraper.workers.base import BaseScraper
+from scraper.workers.base import BaseScraper, is_relevant_title
 
 _SEARCH_URLS = [
     "https://www.sarathiads.lk/vehicles/cars/jeep-suv-van",
     "https://www.sarathiads.lk/vehicles/cars/double-cab",
 ]
-
-_KEYWORDS = frozenset([
-    "4x4", "4wd", "awd", "double cab", "double-cab", "pickup",
-    "hilux", "ranger", "d-max", "triton", "navara",
-    "fortuner", "prado", "landcruiser", "pajero", "montero", "surf",
-])
 
 
 class SarathiadsScraper(BaseScraper):
@@ -69,7 +63,7 @@ class SarathiadsScraper(BaseScraper):
 
             title_el = await page.query_selector("h1, .ad-title, .listing-title")
             title = (await title_el.inner_text()).strip() if title_el else ""
-            if not title or not _is_relevant(title):
+            if not title or not is_relevant_title(title):
                 return None
 
             price_el = await page.query_selector(".price, .ad-price, [class*='price']")
@@ -117,11 +111,6 @@ class SarathiadsScraper(BaseScraper):
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
-
-def _is_relevant(title: str) -> bool:
-    lower = title.lower()
-    return any(kw in lower for kw in _KEYWORDS)
-
 
 def _clean(value: str | None) -> str | None:
     return value.strip().lower() if value else None

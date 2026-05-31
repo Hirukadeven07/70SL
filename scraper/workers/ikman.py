@@ -2,7 +2,7 @@ import asyncio
 import re
 from urllib.parse import quote
 
-from scraper.workers.base import BaseScraper
+from scraper.workers.base import BaseScraper, is_relevant_title
 
 _BASE_SEARCH = "https://ikman.lk/en/ads/sri-lanka/vehicles"
 
@@ -13,13 +13,6 @@ _SEARCH_QUERIES = [
     "ranger", "d-max", "montero",
 ]
 
-_KEYWORDS = frozenset(
-    [
-        "4x4", "4wd", "awd", "double cab", "double-cab", "pickup",
-        "hilux", "ranger", "d-max", "triton", "navara",
-        "fortuner", "prado", "landcruiser", "pajero", "montero", "surf",
-    ]
-)
 
 
 class IkmanScraper(BaseScraper):
@@ -92,7 +85,7 @@ class IkmanScraper(BaseScraper):
 
             title_el = await page.query_selector("h1[class*='title']")
             title = (await title_el.inner_text()).strip() if title_el else ""
-            if not title or not _is_relevant(title):
+            if not title or not is_relevant_title(title):
                 return None
 
             price_el = await page.query_selector("[class*='price']")
@@ -140,10 +133,6 @@ class IkmanScraper(BaseScraper):
             "image_urls": image_urls,
         }
 
-
-def _is_relevant(title: str) -> bool:
-    lower = title.lower()
-    return any(kw in lower for kw in _KEYWORDS)
 
 
 def _parse_price(raw: str) -> int | None:
