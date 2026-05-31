@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +9,8 @@ from starlette.requests import Request
 from api.db import get_firestore
 from api.limiter import limiter
 from api.schemas import ListingOut, ListingsPage
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -66,11 +69,15 @@ async def list_listings(
     sort_field, sort_dir = _SORT[sort]
     q = q.order_by(sort_field, direction=sort_dir)
 
-    count_result = await q.count().get()
-    total: int = count_result[0][0].value
+    try:
+        count_result = await q.count().get()
+        total: int = count_result[0][0].value
 
-    docs = await q.offset((page - 1) * page_size).limit(page_size).get()
-    items = [_doc_to_listing(d) for d in docs]
+        docs = await q.offset((page - 1) * page_size).limit(page_size).get()
+        items = [_doc_to_listing(d) for d in docs]
+    except Exception as exc:
+        log.exception("Firestore query failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
 
     return ListingsPage(
         items=items,
