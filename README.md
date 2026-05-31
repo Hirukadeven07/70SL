@@ -4,6 +4,7 @@
 <img src="assets/banner.png" alt="70SL Banner" width="100%" />
 <br/>
 
+[![Website](https://img.shields.io/badge/Live-70sl.up.railway.app-blue?style=flat-square)](https://70sl.up.railway.app/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square)](https://www.python.org/downloads/release/python-3120/)
 [![Stars](https://img.shields.io/github/stars/Hirukadeven07/70SL?style=flat-square)](https://github.com/Hirukadeven07/70SL/stargazers)
