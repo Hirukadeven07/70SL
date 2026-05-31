@@ -33,13 +33,3 @@ class ListingsPage(BaseModel):
     pages: int
 
 
-class AlertCreate(BaseModel):
-    email: EmailStr
-    filters: dict
-
-
-class AlertOut(BaseModel):
-    id: str
-    email: str
-    filters: dict
-    created_at: datetime
