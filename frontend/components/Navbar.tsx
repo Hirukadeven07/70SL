@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
@@ -18,9 +19,14 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <span className="font-display font-bold text-2xl text-white tracking-widest group-hover:text-red-400 transition-colors duration-200">
-              70SL
-            </span>
+            <Image
+              src="/logo.png"
+              alt="70SL"
+              width={44}
+              height={44}
+              className="drop-shadow-md group-hover:brightness-110 transition-all duration-200"
+              priority
+            />
             <span className="hidden sm:block text-xs text-slate-400 uppercase tracking-widest leading-tight">
               Sri Lanka<br />4×4 Listings
             </span>
