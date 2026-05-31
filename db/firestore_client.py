@@ -17,6 +17,14 @@ def _init_app() -> firebase_admin.App:
 
     cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if cred_path:
+        # Guard against the common Railway misconfiguration where the base64 JSON
+        # is placed in GOOGLE_APPLICATION_CREDENTIALS instead of
+        # GOOGLE_APPLICATION_CREDENTIALS_JSON, causing a "file name too long" error.
+        try:
+            cred_dict = json.loads(base64.b64decode(cred_path))
+            return firebase_admin.initialize_app(credentials.Certificate(cred_dict))
+        except Exception:
+            pass
         return firebase_admin.initialize_app(credentials.Certificate(cred_path))
 
     return firebase_admin.initialize_app()
