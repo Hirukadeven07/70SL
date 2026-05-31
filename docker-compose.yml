@@ -14,6 +14,12 @@ services:
     volumes:
       - .:/workspace
       - firebase_npm:/root/.npm
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   # FastAPI backend
   api:
@@ -24,12 +30,11 @@ services:
       - "8000:8000"
     environment:
       FIRESTORE_EMULATOR_HOST: firebase:8080
-      FIREBASE_STORAGE_EMULATOR_HOST: firebase:9199
       GOOGLE_CLOUD_PROJECT: demo-70sl
-      FIREBASE_STORAGE_BUCKET: demo-70sl.appspot.com
       NEXT_PUBLIC_API_URL: http://localhost:3000
     depends_on:
-      - firebase
+      firebase:
+        condition: service_healthy
 
 volumes:
   firebase_npm:

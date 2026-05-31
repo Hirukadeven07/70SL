@@ -143,7 +143,7 @@ def _parse_mileage(raw: str | None) -> int | None:
     if not raw:
         return None
     text = raw.lower().replace(",", "")
-    m = re.search(r"(\d+\.?\d*)\s*k", text)
+    m = re.search(r"(\d+\.?\d*)\s*k(?!m)", text)
     if m:
         return int(float(m.group(1)) * 1000)
     m = re.search(r"(\d+)", text)

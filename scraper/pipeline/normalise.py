@@ -25,7 +25,7 @@ def _parse_price(raw: str) -> int | None:
 
 def _parse_mileage(raw: str) -> int | None:
     raw = raw.lower().replace(",", "")
-    m = re.search(r"(\d+\.?\d*)\s*k", raw)
+    m = re.search(r"(\d+\.?\d*)\s*k(?!m)", raw)
     if m:
         return int(float(m.group(1)) * 1000)
     m = re.search(r"(\d+)", raw)

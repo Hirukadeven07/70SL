@@ -40,11 +40,18 @@ async def list_listings(
     price_max: Optional[int] = None,
     district: Optional[str] = None,
     fuel_type: Optional[str] = None,
+    transmission: Optional[str] = None,
     sort: str = Query("newest", pattern="^(price_asc|price_desc|newest)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=50),
     db: AsyncClient = Depends(get_firestore),
 ) -> ListingsPage:
+    if (price_min is not None or price_max is not None) and (year_min is not None or year_max is not None):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot filter by both price range and year range simultaneously; use one at a time.",
+        )
+
     q = db.collection("listings").where("is_active", "==", True)
 
     if body_type:
@@ -57,6 +64,8 @@ async def list_listings(
         q = q.where("district", "==", district.lower())
     if fuel_type:
         q = q.where("fuel_type", "==", fuel_type)
+    if transmission:
+        q = q.where("transmission", "==", transmission)
     if price_min is not None:
         q = q.where("price_lkr", ">=", price_min)
     if price_max is not None:

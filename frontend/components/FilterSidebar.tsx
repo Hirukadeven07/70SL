@@ -62,6 +62,7 @@ export default function FilterSidebar() {
         </div>
 
         <form
+          key={searchParams.toString()}
           onSubmit={(e) => { e.preventDefault(); applyFilters(e.currentTarget) }}
           className="divide-y divide-slate-100"
         >

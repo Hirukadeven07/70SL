@@ -1,15 +1,17 @@
 import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from google.cloud.firestore_v1.async_client import AsyncClient
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from api.db import get_firestore
 from api.limiter import limiter
 from api.routers import listings
 
@@ -55,5 +57,6 @@ app.include_router(listings.router)
 
 
 @app.get("/health", tags=["meta"])
-async def health() -> dict[str, str]:
+async def health(db: AsyncClient = Depends(get_firestore)) -> dict[str, str]:
+    await db.collection("listings").limit(1).get()
     return {"status": "ok"}

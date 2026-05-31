@@ -37,7 +37,7 @@ jobs:
 
   - name: scrape-sarathiads
     description: Scrape sarathiads.lk every 8 hours
-    schedule: "0 2 */8 * *"
+    schedule: "0 */8 * * *"
     time_zone: Asia/Colombo
     target:
       type: cloud_run_job
