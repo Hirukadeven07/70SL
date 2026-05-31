@@ -222,9 +222,6 @@ PORT=8000
 # Frontend
 NEXT_PUBLIC_API_URL=http://localhost:8000
 
-# Email alerts
-ALERT_FROM_EMAIL=alerts@yourdomain.com
-
 # Local dev (Firebase Emulator)
 # FIRESTORE_EMULATOR_HOST=localhost:8080
 # FIREBASE_STORAGE_EMULATOR_HOST=localhost:9199
@@ -290,8 +287,7 @@ gcloud run jobs create scraper-ikman \
 3. ~~`scraper/pipeline/dedup.py` + `scraper/pipeline/normalise.py`~~ ✓
 4. ~~`api/` listings router with filtering & pagination~~ ✓
 5. Remaining scrapers (`riyasewana.py`, `sarathiads.py`)
-6. Alerts email dispatch
-7. MapView + Similar listings endpoint
+6. MapView + Similar listings endpoint
 
 ---
 

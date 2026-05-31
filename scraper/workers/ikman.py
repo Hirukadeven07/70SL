@@ -1,12 +1,17 @@
 import asyncio
 import re
+from urllib.parse import quote
 
 from scraper.workers.base import BaseScraper
 
-_CATEGORY = (
-    "https://www.ikman.lk/en/ads/sri-lanka/vehicles/cars"
-    "?filter.category.slug=jeeps-suvs-vans"
-)
+_BASE_SEARCH = "https://ikman.lk/en/ads/sri-lanka/vehicles"
+
+# Each query is fetched as a separate search; results are deduped by URL.
+_SEARCH_QUERIES = [
+    "4x4", "4wd", "double cab", "hilux", "prado",
+    "fortuner", "landcruiser", "pajero", "triton", "navara",
+    "ranger", "d-max", "montero",
+]
 
 _KEYWORDS = frozenset(
     [
@@ -19,37 +24,47 @@ _KEYWORDS = frozenset(
 
 class IkmanScraper(BaseScraper):
     source = "ikman"
-    base_url = "https://www.ikman.lk"
+    base_url = "https://ikman.lk"
 
     async def fetch_listing_urls(self) -> list[str]:
-        urls: list[str] = []
+        seen: dict[str, None] = {}
         page = await self._new_page()
-        page_num = 1
 
-        while True:
-            await asyncio.sleep(3)
-            await page.goto(f"{_CATEGORY}&page={page_num}", wait_until="domcontentloaded")
-            links = await page.query_selector_all("a[data-testid='ad-card-link']")
-            if not links:
-                # Try alternative selector pattern
-                links = await page.query_selector_all("a.sl-card-link, a[href*='/en/ad/']")
-            hrefs = [await lnk.get_attribute("href") for lnk in links]
-            hrefs = [h for h in hrefs if h and "/en/ad/" in h]
-            if not hrefs:
-                break
-            urls.extend(
-                f"{self.base_url}{h}" if h.startswith("/") else h for h in hrefs
-            )
-            page_num += 1
+        for query in _SEARCH_QUERIES:
+            page_num = 1
+            q = quote(query)
+            while True:
+                await asyncio.sleep(self.delay_s)
+                url = f"{_BASE_SEARCH}?query={q}&page={page_num}"
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                try:
+                    await page.wait_for_selector("a[href*='/en/ad/']", timeout=8000)
+                except Exception:
+                    pass
+                hrefs = await page.evaluate("""() =>
+                    Array.from(document.querySelectorAll('a[href]'))
+                        .map(a => a.getAttribute('href'))
+                        .filter(h => h && h.includes('/en/ad/'))
+                """)
+                if not hrefs:
+                    break
+                for h in hrefs:
+                    full = f"{self.base_url}{h}" if h.startswith("/") else h
+                    seen[full] = None
+                page_num += 1
 
         await page.close()
-        return list(dict.fromkeys(urls))  # deduplicate while preserving order
+        return list(seen.keys())
 
     async def parse_listing(self, url: str, html: str) -> dict | None:
         page = await self._new_page()
         try:
-            await asyncio.sleep(3)
-            await page.goto(url, wait_until="networkidle")
+            await asyncio.sleep(self.delay_s)
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            try:
+                await page.wait_for_selector("h1", timeout=8000)
+            except Exception:
+                pass
 
             title_el = await page.query_selector("h1[class*='title']")
             title = (await title_el.inner_text()).strip() if title_el else ""

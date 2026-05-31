@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "your-firebase-project-id"
-  }
+    "default": "sl-9bd86",
+    "70SL": "sl-9bd86"
+  },
+  "targets": {},
+  "etags": {}
 }
