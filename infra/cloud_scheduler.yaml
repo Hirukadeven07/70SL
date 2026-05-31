@@ -1,0 +1,45 @@
+# Cloud Scheduler jobs for scraper Cloud Run Jobs
+#
+# Deploy the scraper as a Cloud Run Job first:
+#   gcloud run jobs create scraper-ikman \
+#     --image gcr.io/PROJECT_ID/70sl-scraper \
+#     --args="--source,ikman" \
+#     --region us-central1 \
+#     --service-account scraper-sa@PROJECT_ID.iam.gserviceaccount.com
+#
+# Then create the scheduler trigger below:
+#   gcloud scheduler jobs create http scrape-ikman \
+#     --schedule="0 */6 * * *" \
+#     --uri="https://us-central1-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/scraper-ikman:run" \
+#     --http-method=POST \
+#     --oauth-service-account-email=scheduler-sa@PROJECT_ID.iam.gserviceaccount.com \
+#     --location=us-central1 \
+#     --time-zone="Asia/Colombo"
+
+jobs:
+  - name: scrape-ikman
+    description: Scrape ikman.lk every 6 hours
+    schedule: "0 */6 * * *"
+    time_zone: Asia/Colombo
+    target:
+      type: cloud_run_job
+      job_name: scraper-ikman
+      region: us-central1
+
+  - name: scrape-riyasewana
+    description: Scrape riyasewana.com every 8 hours
+    schedule: "0 */8 * * *"
+    time_zone: Asia/Colombo
+    target:
+      type: cloud_run_job
+      job_name: scraper-riyasewana
+      region: us-central1
+
+  - name: scrape-sarathiads
+    description: Scrape sarathiads.lk every 8 hours
+    schedule: "0 2 */8 * *"
+    time_zone: Asia/Colombo
+    target:
+      type: cloud_run_job
+      job_name: scraper-sarathiads
+      region: us-central1

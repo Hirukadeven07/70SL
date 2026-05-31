@@ -1,0 +1,35 @@
+services:
+  # Firebase Emulator Suite — Firestore + Storage for local development
+  firebase:
+    image: node:20-slim
+    working_dir: /workspace
+    command: >
+      sh -c "npm install -g firebase-tools &&
+             firebase emulators:start --only firestore,storage
+             --project demo-70sl"
+    ports:
+      - "4000:4000"   # Emulator UI
+      - "8080:8080"   # Firestore
+      - "9199:9199"   # Storage
+    volumes:
+      - .:/workspace
+      - firebase_npm:/root/.npm
+
+  # FastAPI backend
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      FIRESTORE_EMULATOR_HOST: firebase:8080
+      FIREBASE_STORAGE_EMULATOR_HOST: firebase:9199
+      GOOGLE_CLOUD_PROJECT: demo-70sl
+      FIREBASE_STORAGE_BUCKET: demo-70sl.appspot.com
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    depends_on:
+      - firebase
+
+volumes:
+  firebase_npm:
