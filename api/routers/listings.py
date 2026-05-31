@@ -46,50 +46,58 @@ async def list_listings(
     page_size: int = Query(20, ge=1, le=50),
     db: AsyncClient = Depends(get_firestore),
 ) -> ListingsPage:
-    if (price_min is not None or price_max is not None) and (year_min is not None or year_max is not None):
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot filter by both price range and year range simultaneously; use one at a time.",
-        )
-
+    # Only apply body_type inside Firestore — it has composite indexes for every
+    # sort order. All other filters run in Python to avoid needing hundreds of
+    # compound indexes (Firestore requires one per field+sort combination).
     q = db.collection("listings").where("is_active", "==", True)
-
     if body_type:
         q = q.where("body_type", "==", body_type)
-    if make:
-        q = q.where("make", "==", make.lower())
-    if model:
-        q = q.where("model", "==", model.lower())
-    if district:
-        q = q.where("district", "==", district.lower())
-    if fuel_type:
-        q = q.where("fuel_type", "==", fuel_type)
-    if transmission:
-        q = q.where("transmission", "==", transmission)
-    if price_min is not None:
-        q = q.where("price_lkr", ">=", price_min)
-    if price_max is not None:
-        q = q.where("price_lkr", "<=", price_max)
-    if year_min is not None:
-        q = q.where("year", ">=", year_min)
-    if year_max is not None:
-        q = q.where("year", "<=", year_max)
 
     sort_field, sort_dir = _SORT[sort]
     q = q.order_by(sort_field, direction=sort_dir)
 
     try:
-        count_result = await q.count().get()
-        total: int = count_result[0][0].value
-
-        docs = await q.offset((page - 1) * page_size).limit(page_size).get()
-        items = [_doc_to_listing(d) for d in docs]
+        docs = await q.get()
     except Exception as exc:
         log.exception("Firestore query failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
 
+    make_lc = make.lower() if make else None
+    model_lc = model.lower() if model else None
+    district_lc = district.lower() if district else None
+
+    items: list[ListingOut] = []
+    for doc in docs:
+        data = doc.to_dict() or {}
+        data["id"] = doc.id
+
+        if make_lc and data.get("make") != make_lc:
+            continue
+        if model_lc and data.get("model") != model_lc:
+            continue
+        if district_lc and data.get("district") != district_lc:
+            continue
+        if fuel_type and data.get("fuel_type") != fuel_type:
+            continue
+        if transmission and data.get("transmission") != transmission:
+            continue
+        if price_min is not None and (data.get("price_lkr") is None or data["price_lkr"] < price_min):
+            continue
+        if price_max is not None and (data.get("price_lkr") is None or data["price_lkr"] > price_max):
+            continue
+        if year_min is not None and (data.get("year") is None or data["year"] < year_min):
+            continue
+        if year_max is not None and (data.get("year") is None or data["year"] > year_max):
+            continue
+
+        items.append(ListingOut.model_validate(data))
+
+    total = len(items)
+    start = (page - 1) * page_size
+    page_items = items[start: start + page_size]
+
     return ListingsPage(
-        items=items,
+        items=page_items,
         total=total,
         page=page,
         page_size=page_size,
