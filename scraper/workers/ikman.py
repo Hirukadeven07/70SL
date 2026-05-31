@@ -33,24 +33,48 @@ class IkmanScraper(BaseScraper):
         for query in _SEARCH_QUERIES:
             page_num = 1
             q = quote(query)
-            while True:
+            while page_num <= 20:  # hard cap — no query has more than ~500 results
                 await asyncio.sleep(self.delay_s)
                 url = f"{_BASE_SEARCH}?query={q}&page={page_num}"
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                try:
+                    await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                except Exception:
+                    break
                 try:
                     await page.wait_for_selector("a[href*='/en/ad/']", timeout=8000)
                 except Exception:
                     pass
-                hrefs = await page.evaluate("""() =>
-                    Array.from(document.querySelectorAll('a[href]'))
-                        .map(a => a.getAttribute('href'))
-                        .filter(h => h && h.includes('/en/ad/'))
-                """)
-                if not hrefs:
-                    break
+
+                hrefs, has_next = await page.evaluate(f"""() => {{
+                    // Organic links are those NOT inside a top-ads container.
+                    const organic = Array.from(document.querySelectorAll('a[href]'))
+                        .filter(a => {{
+                            const h = a.getAttribute('href');
+                            if (!h || !h.includes('/en/ad/')) return false;
+                            let el = a.parentElement;
+                            for (let i = 0; i < 8 && el; i++) {{
+                                if ((el.className || '').includes('top-ads')) return false;
+                                el = el.parentElement;
+                            }}
+                            return true;
+                        }})
+                        .map(a => a.getAttribute('href'));
+
+                    // Pagination: page numbers visible in the paginator
+                    const paginationNums = Array.from(
+                        document.querySelectorAll('[class*="pagination"] a, [class*="page"] a')
+                    ).map(a => parseInt(a.innerText)).filter(n => !isNaN(n));
+                    const hasNext = paginationNums.includes({page_num + 1});
+
+                    return [organic, hasNext];
+                }}""")
+
                 for h in hrefs:
                     full = f"{self.base_url}{h}" if h.startswith("/") else h
                     seen[full] = None
+
+                if not hrefs or not has_next:
+                    break
                 page_num += 1
 
         await page.close()

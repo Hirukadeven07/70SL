@@ -6,13 +6,15 @@ from scraper.workers.base import BaseScraper
 # Category pages for 4x4 / double-cab / SUV vehicles
 _SEARCH_URLS = [
     "https://riyasewana.com/search/jeep",
-    "https://riyasewana.com/search/double-cab",
+    "https://riyasewana.com/search/suvs",
+    "https://riyasewana.com/search/pickups",
 ]
 
 _KEYWORDS = frozenset([
     "4x4", "4wd", "awd", "double cab", "double-cab", "pickup",
     "hilux", "ranger", "d-max", "triton", "navara",
     "fortuner", "prado", "landcruiser", "pajero", "montero", "surf",
+    "jeep", "suv",
 ])
 
 
@@ -32,31 +34,35 @@ class RiyasewanaScraper(BaseScraper):
                     paginated = f"{search_url}?page={page_num}" if page_num > 1 else search_url
                     await page.goto(paginated, wait_until="domcontentloaded")
 
-                    # Wait for listing images as a signal that cards have loaded
+                    # Detect rate-limit ban page
+                    body_text = await page.evaluate("() => document.body.innerText")
+                    if "Rate limit exceeded" in body_text or "Temporary ban" in body_text:
+                        import logging
+                        logging.getLogger(__name__).warning(
+                            "riyasewana rate-limited on %s — skipping remaining pages", paginated
+                        )
+                        break
+
+                    # Wait for listing cards to load
                     try:
-                        await page.wait_for_selector(".listing-img, .img-box, article a", timeout=8_000)
+                        await page.wait_for_selector("a[href*='/buy/']", timeout=8_000)
                     except Exception:
                         pass
 
-                    # Collect listing links
-                    links = await page.query_selector_all(
-                        "h2 a[href*='riyasewana.com'], .item a[href*='/'], article a[href*='/']"
-                    )
-                    if not links:
-                        # Fallback: grab all anchors with a numeric segment
-                        links = await page.query_selector_all("a[href]")
-                        links = [
-                            lnk for lnk in links
-                            if re.search(r"/\d+", await lnk.get_attribute("href") or "")
-                        ]
+                    # Collect listing links — all /buy/ anchors
+                    links = await page.query_selector_all("a[href*='/buy/']")
+                    hrefs_raw = [await lnk.get_attribute("href") for lnk in links]
 
-                    hrefs = [await lnk.get_attribute("href") for lnk in links]
-                    hrefs = [
-                        h if h.startswith("http") else self.base_url + h
-                        for h in hrefs
-                        if h and "riyasewana.com" in (h if h.startswith("http") else self.base_url + h)
-                        and re.search(r"/\d+", h)
-                    ]
+                    hrefs = []
+                    for h in hrefs_raw:
+                        if not h:
+                            continue
+                        if h.startswith("//"):
+                            h = "https:" + h
+                        elif not h.startswith("http"):
+                            h = self.base_url + h
+                        if "/buy/" in h and h not in hrefs:
+                            hrefs.append(h)
 
                     if not hrefs:
                         break
@@ -74,37 +80,44 @@ class RiyasewanaScraper(BaseScraper):
             await asyncio.sleep(self.delay_s)
             await page.goto(url, wait_until="domcontentloaded")
 
-            title_el = await page.query_selector("h1, .adtitle, .listing-title")
+            title_el = await page.query_selector("h1")
             title = (await title_el.inner_text()).strip() if title_el else ""
             if not title or not _is_relevant(title):
                 return None
 
-            # Price (format: "Rs. 12,500,000" or "LKR 12,500,000")
-            price_el = await page.query_selector(".price, .pricetag, [class*='price']")
+            # Price — ".price-amount" contains the numeric value or "Negotiable"
+            price_el = await page.query_selector(".price-amount")
             price_lkr = _parse_price(await price_el.inner_text()) if price_el else None
 
-            # Detail fields in a table or list
+            # Detail fields — each row has .detail-label and .detail-value spans
             details: dict[str, str] = {}
-            for row in await page.query_selector_all("table tr, .ad-details li, .more-details li"):
-                cells = await row.query_selector_all("td, span, p")
-                if len(cells) >= 2:
-                    k = (await cells[0].inner_text()).strip().lower().rstrip(":")
-                    v = (await cells[1].inner_text()).strip()
+            for row in await page.query_selector_all(".detail-row"):
+                label_el = await row.query_selector(".detail-label")
+                value_el = await row.query_selector(".detail-value")
+                if label_el and value_el:
+                    k = (await label_el.inner_text()).strip().lower().rstrip(":")
+                    v = (await value_el.inner_text()).strip()
                     details[k] = v
 
-            # Images
+            # Images — full-size URLs stored in data-full on thumbnail strip
             image_urls: list[str] = []
-            for img in await page.query_selector_all(".ad-img img, .gallery img, #bigpic"):
-                src = await img.get_attribute("src") or await img.get_attribute("data-src")
+            for thumb in await page.query_selector_all(".dt-thumb[data-full]"):
+                src = await thumb.get_attribute("data-full")
                 if src and src.startswith("http"):
                     image_urls.append(src)
+            # Fallback: main image
+            if not image_urls:
+                main_img = await page.query_selector("#mainImg")
+                if main_img:
+                    src = await main_img.get_attribute("src")
+                    if src and src.startswith("http"):
+                        image_urls.append(src)
 
-            # District
-            loc_el = await page.query_selector(".location, .district, [class*='location']")
-            district = (await loc_el.inner_text()).strip().lower() if loc_el else None
+            # District — stored as "Location" in the detail rows
+            district = _clean(details.get("location"))
 
-            # Description
-            desc_el = await page.query_selector(".more, .description, #description")
+            # Description — inside .more-card-body (the "More Details" section)
+            desc_el = await page.query_selector(".more-card-body")
             description = (await desc_el.inner_text()).strip()[:2000] if desc_el else None
 
         finally:
@@ -121,7 +134,7 @@ class RiyasewanaScraper(BaseScraper):
             "price_lkr": price_lkr,
             "mileage_km": _parse_mileage(details.get("mileage")),
             "fuel_type": _normalise_fuel(details.get("fuel type") or details.get("fuel")),
-            "transmission": _normalise_transmission(details.get("transmission")),
+            "transmission": _normalise_transmission(details.get("gear") or details.get("transmission")),
             "district": district,
             "description": description,
             "image_urls": image_urls[:10],
@@ -155,7 +168,7 @@ def _parse_mileage(raw: str | None) -> int | None:
     if not raw:
         return None
     text = raw.lower().replace(",", "")
-    m = re.search(r"(\d+\.?\d*)\s*k", text)
+    m = re.search(r"(\d+\.?\d*)\s*k(?!m)", text)
     if m:
         return int(float(m.group(1)) * 1000)
     m = re.search(r"(\d+)", text)
