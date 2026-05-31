@@ -20,19 +20,3 @@ export async function fetchListings(
     return null
   }
 }
-
-export async function postAlert(
-  email: string,
-  filters: Record<string, string>
-): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_URL}/alerts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, filters }),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}

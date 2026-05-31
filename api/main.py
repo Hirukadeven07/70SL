@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from api.limiter import limiter
-from api.routers import alerts, listings
+from api.routers import listings
 
 app = FastAPI(title="70SL Listings API", version="0.1.0")
 
@@ -41,7 +41,6 @@ async def security_headers(request: Request, call_next: object) -> Response:
 
 
 app.include_router(listings.router)
-app.include_router(alerts.router)
 
 
 @app.get("/health", tags=["meta"])

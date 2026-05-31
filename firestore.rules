@@ -6,9 +6,5 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
-    // Alerts: no direct client access — managed via API
-    match /alerts/{alertId} {
-      allow read, write: if false;
-    }
   }
 }
