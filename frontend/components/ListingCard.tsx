@@ -1,3 +1,5 @@
+'use client'
+
 import type { Listing } from '@/lib/types'
 
 const SOURCE_BADGE: Record<string, { label: string; classes: string }> = {
