@@ -1,10 +1,13 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Listings: public read, all writes via Admin SDK only
+    // All access goes through the API (Admin SDK bypasses these rules).
+    // Block direct client access to every collection.
     match /listings/{listingId} {
-      allow read: if true;
-      allow write: if false;
+      allow read, write: if false;
+    }
+    match /alerts/{alertId} {
+      allow read, write: if false;
     }
   }
 }
