@@ -12,7 +12,7 @@ export async function fetchListings(
 
   try {
     const res = await fetch(`${API_URL}/listings?${params.toString()}`, {
-      next: { revalidate: 60 },
+      cache: 'no-store',
     })
     if (!res.ok) return null
     return (await res.json()) as PaginatedResponse
