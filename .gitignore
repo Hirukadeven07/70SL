@@ -4,6 +4,7 @@
 .claude.json.backup
 .mcp.json
 CLAUDE.local.md
+CLAUDE.md
 .claude-checkpoints/
 
 # Secrets — never commit real credentials
