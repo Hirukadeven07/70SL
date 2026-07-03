@@ -162,7 +162,8 @@ gcloud run jobs create scraper-ikman \
 ├── db/                     # Pydantic models + Firestore client
 ├── frontend/               # Next.js app (App Router)
 ├── infra/                  # Cloud Scheduler job definitions
-├── assets/                 # Banner and static assets
+├── assets/                 # Banner, logo, and static assets
+├── scripts/                # One-off maintenance & debug scripts (seed/cleanup Firestore, etc.)
 └── docker-compose.yml      # Local dev (Firebase Emulator + API)
 ```
 

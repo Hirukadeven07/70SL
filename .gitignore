@@ -1,14 +1,33 @@
 # Claude Code local data
 .claude/
+.claude.json
+.claude.json.backup
+.mcp.json
+CLAUDE.local.md
+.claude-checkpoints/
 
 # Secrets — never commit real credentials
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 service-account.json
 *-service-account.json
 *-credentials.json
+credentials.json
+*.pem
+*.key
+!*.pub.key
+*.p12
+*.pfx
 *.json.key
+id_rsa
+id_rsa.pub
+.npmrc
+*.token
+secrets/
+secrets.json
 
 # Python
 __pycache__/
